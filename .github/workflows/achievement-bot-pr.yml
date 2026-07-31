@@ -1,0 +1,33 @@
+name: Create co-authored achievement PR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create bot-authored co-authored pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="achievement/bot-pair-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          printf '\nBot collaboration run: %s\n' "$GITHUB_RUN_ID" >> collaboration-log.md
+          git add collaboration-log.md
+          git commit -m "Add bot collaboration record
+
+Co-authored-by: XuanHong <122072575+XuanHongitHub@users.noreply.github.com>"
+          git push --set-upstream origin "$branch"
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "Bot-authored co-authored workflow" \
+            --body "Created by GitHub Actions with XuanHong attributed as co-author."
