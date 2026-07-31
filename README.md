@@ -1,2 +1,7 @@
-# github-achievement-lab
-Sandbox repository for learning GitHub collaboration workflows and achievements.
+# Collaboration Workflow Lab
+
+This repository contains small, isolated exercises for GitHub issues and pull requests.
+
+## Exercise 1
+
+Create a focused change through a feature branch and merge it through a pull request.
