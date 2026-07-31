@@ -1,0 +1,56 @@
+name: Bot discussion helper
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Operation to perform
+        required: true
+        type: choice
+        options:
+          - create
+          - accept
+      comment_id_1:
+        description: First discussion comment node ID
+        required: false
+        type: string
+      comment_id_2:
+        description: Second discussion comment node ID
+        required: false
+        type: string
+
+permissions:
+  discussions: write
+
+jobs:
+  create:
+    if: inputs.operation == 'create'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create bot-authored questions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          owner="${GITHUB_REPOSITORY%%/*}"
+          name="${GITHUB_REPOSITORY#*/}"
+          query='query($owner:String!,$name:String!){repository(owner:$owner,name:$name){id discussionCategories(first:20){nodes{id isAnswerable}}}}'
+          repository_id=$(gh api graphql -f query="$query" -F owner="$owner" -F name="$name" --jq '.data.repository.id')
+          category_id=$(gh api graphql -f query="$query" -F owner="$owner" -F name="$name" --jq '.data.repository.discussionCategories.nodes[] | select(.isAnswerable == true) | .id' | head -n 1)
+          mutation='mutation($repositoryId:ID!,$categoryId:ID!,$title:String!,$body:String!){createDiscussion(input:{repositoryId:$repositoryId,categoryId:$categoryId,title:$title,body:$body}){discussion{url}}}'
+          for index in 1 2; do
+            gh api graphql -f query="$mutation" -f repositoryId="$repository_id" -f categoryId="$category_id" -f title="Bot collaboration question $index" -f body="How should collaboration exercise $index be verified?" --jq '.data.createDiscussion.discussion.url'
+          done
+
+  accept:
+    if: inputs.operation == 'accept'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Accept user answers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT_ID_1: ${{ inputs.comment_id_1 }}
+          COMMENT_ID_2: ${{ inputs.comment_id_2 }}
+        run: |
+          mutation='mutation($commentId:ID!){markDiscussionCommentAsAnswer(input:{id:$commentId}){discussion{url answerChosenAt}}}'
+          gh api graphql -f query="$mutation" -f commentId="$COMMENT_ID_1" --jq '.data.markDiscussionCommentAsAnswer.discussion'
+          gh api graphql -f query="$mutation" -f commentId="$COMMENT_ID_2" --jq '.data.markDiscussionCommentAsAnswer.discussion'
